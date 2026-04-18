@@ -5,9 +5,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className="dark">
       <body className="bg-zinc-950 text-zinc-100 antialiased">
-        <div className="flex flex-row">
+        <div className="flex flex-row pointer-events-auto">
           <Navigation />
-          <main className="flex-1 min-w-0 pt-[60px] md:pt-0">
+          <main className="relative z-0 min-w-0 flex-1 pt-[60px] md:pt-0">
             {children}
           </main>
         </div>

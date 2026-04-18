@@ -23,7 +23,7 @@ const NAV_ITEMS = [
 
 function LogoMark() {
   return (
-    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-violet-500/40 bg-violet-500/20">
+    <div className="pointer-events-none flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-violet-500/40 bg-violet-500/20">
       <Zap size={14} className="text-violet-400" />
     </div>
   );
@@ -31,6 +31,12 @@ function LogoMark() {
 
 function MobileNav() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -48,45 +54,63 @@ function MobileNav() {
 
   return (
     <>
+      {/* z-50 mobile chrome — matches layout audit; pointer-through when drawer is open so backdrop receives taps */}
       <header
-        className="fixed left-0 right-0 top-0 z-50 flex h-[60px] items-center justify-between border-b border-white/10 bg-zinc-950/95 px-4 backdrop-blur-md md:hidden"
+        className={
+          open
+            ? "pointer-events-none fixed left-0 right-0 top-0 z-50 flex h-[60px] items-center justify-between border-b border-white/10 bg-zinc-950/95 px-4 backdrop-blur-md md:hidden"
+            : "fixed left-0 right-0 top-0 z-50 flex h-[60px] items-center justify-between border-b border-white/10 bg-zinc-950/95 px-4 backdrop-blur-md md:hidden"
+        }
       >
-        <div className="flex items-center gap-2.5">
+        <div className="pointer-events-none flex items-center gap-2.5">
           <LogoMark />
           <span className="text-sm font-semibold tracking-tight text-zinc-100">Spirit OS</span>
         </div>
         <button
+          type="button"
           onClick={() => setOpen(true)}
           aria-label="Open navigation"
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400"
+          className={
+            open
+              ? "pointer-events-none relative flex h-11 w-11 cursor-pointer touch-manipulation items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 opacity-50"
+              : "pointer-events-auto relative flex h-11 w-11 cursor-pointer touch-manipulation items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 active:bg-white/10"
+          }
         >
-          <Menu size={18} />
+          <Menu size={18} className="pointer-events-none" aria-hidden />
         </button>
       </header>
 
-      <AnimatePresence>
-        {open && (
+      {/* Do not mount drawer/backdrop until client — avoids Framer hydration mismatch locking the screen */}
+      {mounted && (
+        <>
           <motion.div
-            key="mob-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+            aria-hidden={!open}
+            className={`fixed inset-0 z-40 touch-manipulation bg-black/60 backdrop-blur-sm md:hidden ${open ? "pointer-events-auto cursor-pointer" : "pointer-events-none"}`}
+            animate={
+              open
+                ? { opacity: 1, display: "block" }
+                : { opacity: 0, display: "none" }
+            }
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{
+              willChange: "transform, opacity",
+            }}
             onClick={() => setOpen(false)}
           />
-        )}
-      </AnimatePresence>
 
-      <AnimatePresence>
-        {open && (
           <motion.nav
-            key="mob-drawer"
-            initial={{ x: "-100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "-100%" }}
-            transition={{ type: "spring", stiffness: 320, damping: 32 }}
+            aria-hidden={!open}
             className="fixed bottom-0 left-0 top-0 z-50 flex w-72 flex-col border-r border-white/10 bg-zinc-950 md:hidden"
+            animate={
+              open
+                ? { opacity: 1, display: "flex", x: 0 }
+                : { opacity: 0, display: "none", x: "-100%" }
+            }
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{
+              pointerEvents: open ? "auto" : "none",
+              willChange: "transform, opacity",
+            }}
           >
             <div className="flex h-[60px] flex-shrink-0 items-center justify-between border-b border-white/10 px-4">
               <div className="flex items-center gap-2.5">
@@ -94,11 +118,12 @@ function MobileNav() {
                 <span className="text-sm font-semibold tracking-tight text-zinc-100">Spirit OS</span>
               </div>
               <button
+                type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Close navigation"
-                className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400"
+                className="relative flex h-11 w-11 cursor-pointer touch-manipulation items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 active:bg-white/10"
               >
-                <X size={16} />
+                <X size={16} className="pointer-events-none" aria-hidden />
               </button>
             </div>
             <div className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
@@ -109,7 +134,7 @@ function MobileNav() {
                     key={item.href}
                     href={item.href}
                     onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
+                    className="flex cursor-pointer touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
                   >
                     <Icon size={18} className="flex-shrink-0" />
                     <span>{item.label}</span>
@@ -121,8 +146,8 @@ function MobileNav() {
               <p className="font-mono text-[10px] text-zinc-600">Source · Intuitive Wrld</p>
             </div>
           </motion.nav>
-        )}
-      </AnimatePresence>
+        </>
+      )}
     </>
   );
 }
@@ -160,7 +185,7 @@ function DesktopSidebar() {
             <a
               key={item.href}
               href={item.href}
-              className="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
+              className="group relative flex cursor-pointer touch-manipulation items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
             >
               <Icon size={18} className="flex-shrink-0" />
               <AnimatePresence initial={false}>
@@ -187,10 +212,15 @@ function DesktopSidebar() {
       </nav>
 
       <button
+        type="button"
         onClick={() => setCollapsed((c) => !c)}
-        className="mx-3 mb-4 flex h-9 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100"
+        className="relative z-10 mx-3 mb-4 flex h-11 w-11 flex-shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100"
       >
-        {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        {collapsed ? (
+          <ChevronRight size={16} className="pointer-events-none" aria-hidden />
+        ) : (
+          <ChevronLeft size={16} className="pointer-events-none" aria-hidden />
+        )}
       </button>
     </motion.aside>
   );

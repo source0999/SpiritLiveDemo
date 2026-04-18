@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Zap, Clock, AlertTriangle, Flame, Terminal,
   Cpu, HardDrive, GitBranch,
@@ -55,26 +55,28 @@ function OracleOrb({ onOpenChat }: { onOpenChat: () => void }) {
     <BentoCard className="md:col-span-4 items-center justify-center gap-4 py-8">
       <Label>Spirit · AI Core</Label>
 
-      <div className="relative flex items-center justify-center my-3">
+      <div className="relative flex items-center justify-center my-3 pointer-events-none">
         <motion.div
           animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.25, 0.1] }}
           transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute w-44 h-44 rounded-full bg-violet-500/20 transform-gpu"
+          className="pointer-events-none absolute w-44 h-44 rounded-full bg-violet-500/20 transform-gpu"
         />
         <motion.div
           animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.35, 0.15] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
-          className="absolute w-32 h-32 rounded-full bg-violet-500/25 transform-gpu"
+          className="pointer-events-none absolute w-32 h-32 rounded-full bg-violet-500/25 transform-gpu"
         />
-        <motion.div
+        <motion.button
+          type="button"
           animate={{ scale: [1, 1.05, 1] }}
           transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
           onClick={onOpenChat}
           whileTap={{ scale: 0.95 }}
-          className="relative w-20 h-20 rounded-full bg-gradient-to-br from-violet-500 to-violet-900 shadow-xl shadow-violet-900/70 border border-violet-400/30 flex items-center justify-center cursor-pointer transform-gpu"
+          className="pointer-events-auto relative z-10 flex h-20 w-20 cursor-pointer touch-manipulation items-center justify-center rounded-full border border-violet-400/30 bg-gradient-to-br from-violet-500 to-violet-900 shadow-xl shadow-violet-900/70 transform-gpu"
+          aria-label="Open Command Bar"
         >
-          <Zap size={28} className="text-violet-200" />
-        </motion.div>
+          <Zap size={28} className="pointer-events-none text-violet-200" aria-hidden />
+        </motion.button>
       </div>
 
       <div className="text-center">
@@ -82,22 +84,23 @@ function OracleOrb({ onOpenChat }: { onOpenChat: () => void }) {
         <p className="text-xs text-zinc-500 mt-0.5">Listening · Idle</p>
       </div>
 
-      <div className="flex items-end gap-[3px] h-5 mt-1">
+      <div className="pointer-events-none flex h-5 items-end gap-[3px] mt-1">
         {Array.from({ length: 22 }).map((_, i) => (
           <motion.div
             key={i}
             animate={{ height: ["3px", `${6 + ((i * 41 + 7) % 12)}px`, "3px"] }}
             transition={{ duration: 0.7 + (i % 5) * 0.11, repeat: Infinity, delay: i * 0.045, ease: "easeInOut" }}
-            className="w-[3px] bg-violet-500/55 rounded-full transform-gpu"
+            className="w-[3px] rounded-full bg-violet-500/55 transform-gpu"
           />
         ))}
       </div>
 
       <button
+        type="button"
         onClick={onOpenChat}
-        className="mt-3 w-full py-2.5 rounded-xl border border-violet-500/25 bg-violet-500/10 text-violet-300 text-xs font-semibold active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+        className="pointer-events-auto relative z-[9999] mt-3 flex w-full touch-manipulation items-center justify-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/10 py-2.5 text-xs font-semibold text-violet-300 transition-transform active:scale-[0.98]"
       >
-        <Command size={12} /> Open Command Bar
+        <Command size={12} className="pointer-events-none shrink-0" aria-hidden /> Open Command Bar
       </button>
     </BentoCard>
   );
@@ -502,31 +505,19 @@ function ToxicGrader() {
 type ChatMsg = { role: "user" | "spirit"; text: string };
 const INIT_MSGS: ChatMsg[] = [{ role: "spirit", text: "Source. Command bar online. What do you need?" }];
 
-function getMockResponse(input: string): string {
-  const q = input.toLowerCase();
-  if (q.includes("energy") || q.includes("power") || q.includes("watt"))
-    return "Current draw: 350W. spiritdesktop, spirit, Pi. Super off-peak until 2 PM. Not burning money yet.";
-  if (q.includes("grade") || q.includes("roast"))
-    return "Grader Agent primed. Click [GRADE ME] on the widget when your self-esteem can take it.";
-  if (q.includes("p40") || q.includes("tesla"))
-    return "P40 still offline. Waiting on the 24-pin to 8-pin ATX adapter. It will be worth it.";
-  if (q.includes("briefing") || q.includes("report"))
-    return "Last briefing: 06:00 AM. Four topics covered. Next GPT-Researcher run: 03:00 AM.";
-  if (q.includes("drive") || q.includes("disk") || q.includes("storage"))
-    return "spiritdesktop: 250GB SSD boot, 1TB + 2TB HDDs. spirit Dell: 512GB SSD. All SMART statuses healthy.";
-  if (q.includes("pi") || q.includes("ghost") || q.includes("dns"))
-    return "Ghost Node up. Pi-hole running. FLIRC case in transit — watch thermal throttle under DNS load.";
-  return "Command noted. Wire me to the Ollama backend for real answers.";
-}
+type SpiritStatus = "online" | "error";
 
 function CommandBar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [msgs, setMsgs] = useState<ChatMsg[]>(INIT_MSGS);
   const [draft, setDraft] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [status, setStatus] = useState<SpiritStatus>("online");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 80); }, [open]);
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 80);
+  }, [open]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, thinking]);
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -534,47 +525,123 @@ function CommandBar({ open, onClose }: { open: boolean; onClose: () => void }) {
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
 
-  const send = () => {
+  const send = async () => {
     const text = draft.trim();
     if (!text || thinking) return;
     setDraft("");
     setMsgs((m) => [...m, { role: "user", text }]);
     setThinking(true);
-    setTimeout(() => {
-      setMsgs((m) => [...m, { role: "spirit", text: getMockResponse(text) }]);
+    setStatus("online");
+    try {
+      const res = await fetch("/api/spirit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: text }),
+      });
+      const data: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const errMsg =
+          typeof data === "object" &&
+          data !== null &&
+          "error" in data &&
+          typeof (data as { error: unknown }).error === "string"
+            ? (data as { error: string }).error
+            : `Request failed (${res.status})`;
+        setStatus("error");
+        setMsgs((m) => [...m, { role: "spirit", text: errMsg }]);
+        return;
+      }
+      const reply =
+        typeof data === "object" &&
+        data !== null &&
+        "reply" in data &&
+        typeof (data as { reply: unknown }).reply === "string"
+          ? (data as { reply: string }).reply
+          : "";
+      if (!reply) {
+        setStatus("error");
+        setMsgs((m) => [...m, { role: "spirit", text: "Empty reply from Spirit API." }]);
+        return;
+      }
+      setStatus("online");
+      setMsgs((m) => [...m, { role: "spirit", text: reply }]);
+    } catch (e) {
+      setStatus("error");
+      const message = e instanceof Error ? e.message : "Network error";
+      setMsgs((m) => [...m, { role: "spirit", text: `Spirit API error: ${message}` }]);
+    } finally {
       setThinking(false);
-    }, 800 + Math.random() * 500);
+    }
   };
 
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="fixed bottom-0 inset-x-0 z-50 sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-2xl sm:px-4 transform-gpu"
-          >
-            <div className="bg-zinc-900/98 backdrop-blur-xl border-t border-white/10 sm:border sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col" style={{ maxHeight: "65vh" }}>
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
+    <>
+      {/* No AnimatePresence — visibility driven only by `open` + animate (iOS WebKit enter/exit bug) */}
+      <motion.div
+        aria-hidden={!open}
+        className="fixed inset-0 z-[9990] bg-black/60 backdrop-blur-sm"
+        animate={
+          open
+            ? { opacity: 1, display: "block" }
+            : { opacity: 0, display: "none" }
+        }
+        transition={{ duration: 0 }}
+        style={{
+          pointerEvents: open ? "auto" : "none",
+          willChange: "transform, opacity",
+        }}
+        onClick={onClose}
+      />
+      <motion.div
+        aria-hidden={!open}
+        className="fixed bottom-0 inset-x-0 z-[9991] sm:bottom-6 sm:left-1/2 sm:w-full sm:max-w-2xl sm:-translate-x-1/2 sm:px-4 transform-gpu"
+        animate={
+          open
+            ? { opacity: 1, display: "block", y: 0 }
+            : { opacity: 0, display: "none", y: 16 }
+        }
+        transition={{ duration: 0 }}
+        style={{
+          pointerEvents: open ? "auto" : "none",
+          willChange: "transform, opacity",
+        }}
+      >
+        <div
+          className="flex flex-col overflow-hidden border-t border-white/10 bg-zinc-900/98 shadow-2xl backdrop-blur-xl sm:rounded-2xl sm:border"
+          style={{ maxHeight: "65vh", willChange: "transform, opacity" }}
+        >
+              <div className="flex flex-shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/40 flex items-center justify-center">
+                  <div className="pointer-events-none flex h-5 w-5 items-center justify-center rounded-full border border-violet-500/40 bg-violet-500/20">
                     <Zap size={10} className="text-violet-400" />
                   </div>
                   <p className="text-xs font-semibold text-zinc-300 font-mono">Spirit · Command Bar</p>
-                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">Online</span>
+                  <span
+                    className={cn(
+                      "rounded-full border px-2 py-0.5 text-[10px]",
+                      status === "error"
+                        ? "border-red-500/30 bg-red-500/10 text-red-300"
+                        : "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
+                    )}
+                  >
+                    {status === "error" ? "Error" : "Online"}
+                  </span>
                 </div>
-                <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors p-1"><X size={16} /></button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="pointer-events-auto relative z-[9999] min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-lg p-2 text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300"
+                  aria-label="Close command bar"
+                >
+                  <X size={16} className="pointer-events-none" aria-hidden />
+                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
                 {msgs.map((msg, i) => (
                   <div key={i} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}>
                     {msg.role === "spirit" && (
-                      <div className="w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <div className="pointer-events-none mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-violet-500/30 bg-violet-500/20">
                         <Zap size={9} className="text-violet-400" />
                       </div>
                     )}
@@ -585,7 +652,7 @@ function CommandBar({ open, onClose }: { open: boolean; onClose: () => void }) {
                 ))}
                 {thinking && (
                   <div className="flex gap-2">
-                    <div className="w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
+                    <div className="pointer-events-none flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-violet-500/30 bg-violet-500/20">
                       <Zap size={9} className="text-violet-400" />
                     </div>
                     <div className="px-3 py-2.5 rounded-2xl rounded-tl-sm bg-white/5 border border-white/10 flex items-center gap-1">
@@ -603,19 +670,27 @@ function CommandBar({ open, onClose }: { open: boolean; onClose: () => void }) {
                   ref={inputRef}
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void send();
+                    }
+                  }}
                   placeholder="Issue a command to Spirit..."
                   className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-violet-500/40 transition-colors font-mono"
                 />
-                <button onClick={send} disabled={!draft.trim() || thinking} className="w-9 h-9 flex-shrink-0 rounded-xl bg-violet-500/20 border border-violet-500/30 text-violet-300 hover:bg-violet-500/30 disabled:opacity-30 active:scale-95 transition-all flex items-center justify-center">
-                  <Send size={13} />
+                <button
+                  type="button"
+                  onClick={() => void send()}
+                  disabled={!draft.trim() || thinking}
+                  className="pointer-events-auto relative z-[9999] flex h-11 w-11 flex-shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/20 text-violet-300 transition-all hover:bg-violet-500/30 disabled:opacity-30 active:scale-95"
+                >
+                  <Send size={13} className="pointer-events-none" aria-hidden />
                 </button>
               </div>
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+      </motion.div>
+    </>
   );
 }
 
@@ -634,9 +709,9 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="p-4 md:p-6">
-      {/* Page header */}
-      <div className="mb-5 flex items-center justify-between gap-3">
+    <div className="relative z-0 p-4 md:p-6">
+      {/* Page header — trigger must win hit-testing on iOS (above scroll/compositor quirks) */}
+      <div className="relative z-[1] mb-5 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-zinc-100 truncate">Trinity Dashboard</h1>
           <p className="text-xs md:text-sm text-zinc-500 mt-0.5 truncate">
@@ -644,10 +719,11 @@ export default function DashboardPage() {
           </p>
         </div>
         <button
+          type="button"
           onClick={() => setChatOpen(true)}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-zinc-400 active:scale-95 transition-transform text-xs font-semibold flex-shrink-0"
+          className="pointer-events-auto relative z-[9999] flex min-h-[44px] shrink-0 touch-manipulation cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-400 transition-transform active:scale-95"
         >
-          <Command size={13} />
+          <Command size={13} className="pointer-events-none shrink-0" aria-hidden />
           <span className="hidden sm:inline">Command Bar</span>
           <kbd className="hidden md:inline text-[10px] bg-white/10 px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
         </button>
