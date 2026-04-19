@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useOverlayLock } from "@/components/OverlayLockContext";
 import {
   Zap, Clock, AlertTriangle, Flame, Terminal,
   Cpu, HardDrive, GitBranch,
@@ -68,6 +69,7 @@ function OracleOrb({ onOpenChat }: { onOpenChat: () => void }) {
         />
         <motion.button
           type="button"
+          role="button"
           animate={{ scale: [1, 1.05, 1] }}
           transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
           onClick={onOpenChat}
@@ -97,8 +99,9 @@ function OracleOrb({ onOpenChat }: { onOpenChat: () => void }) {
 
       <button
         type="button"
+        role="button"
         onClick={onOpenChat}
-        className="pointer-events-auto relative z-[9999] mt-3 flex w-full touch-manipulation items-center justify-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/10 py-2.5 text-xs font-semibold text-violet-300 transition-transform active:scale-[0.98]"
+        className="pointer-events-auto relative z-[9999] mt-3 flex w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/10 py-2.5 text-xs font-semibold text-violet-300 transition-transform active:scale-[0.98]"
       >
         <Command size={12} className="pointer-events-none shrink-0" aria-hidden /> Open Command Bar
       </button>
@@ -576,39 +579,49 @@ function CommandBar({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   return (
     <>
-      {/* No AnimatePresence — visibility driven only by `open` + animate (iOS WebKit enter/exit bug) */}
-      <motion.div
+      {/*
+        Backdrop — opacity transition replaces visibility.
+        visibility:hidden is cached by the iOS GPU compositor; the layer
+        may never be promoted to visible even after state change.
+        opacity:0 + pointer-events:none is fully hardware-accelerated on iOS.
+      */}
+      {/*
+        Backdrop — backdrop-blur-sm REMOVED.
+        backdrop-filter triggers an off-screen WebKit render pass; iOS drops
+        the paint silently when GPU memory is constrained or the stacking tree
+        is complex. Solid bg-black/80 is visually equivalent and always paints.
+      */}
+      <div
+        data-open={open}
         aria-hidden={!open}
-        className="fixed inset-0 z-[9990] bg-black/60 backdrop-blur-sm"
-        animate={
-          open
-            ? { opacity: 1, display: "block" }
-            : { opacity: 0, display: "none" }
-        }
-        transition={{ duration: 0 }}
-        style={{
-          pointerEvents: open ? "auto" : "none",
-          willChange: "transform, opacity",
-        }}
+        role="button"
+        tabIndex={open ? 0 : -1}
+        className={cn(
+          "fixed inset-0 z-[99998] touch-manipulation cursor-pointer bg-black/80",
+          "transition-opacity duration-200 ease-out",
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+        )}
         onClick={onClose}
-      />
-      <motion.div
-        aria-hidden={!open}
-        className="fixed bottom-0 inset-x-0 z-[9991] sm:bottom-6 sm:left-1/2 sm:w-full sm:max-w-2xl sm:-translate-x-1/2 sm:px-4 transform-gpu"
-        animate={
-          open
-            ? { opacity: 1, display: "block", y: 0 }
-            : { opacity: 0, display: "none", y: 16 }
-        }
-        transition={{ duration: 0 }}
-        style={{
-          pointerEvents: open ? "auto" : "none",
-          willChange: "transform, opacity",
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClose();
+          }
         }}
+      />
+      {/* Panel — backdrop-blur-xl REMOVED; solid bg-zinc-900; 65dvh for iOS URL bar */}
+      <div
+        data-open={open}
+        aria-hidden={!open}
+        className={cn(
+          "fixed bottom-0 inset-x-0 z-[99999] transform-gpu sm:bottom-6 sm:left-1/2 sm:w-full sm:max-w-2xl sm:-translate-x-1/2 sm:px-4",
+          "transition-[opacity,transform] duration-200 ease-out",
+          open ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-full pointer-events-none",
+        )}
       >
         <div
-          className="flex flex-col overflow-hidden border-t border-white/10 bg-zinc-900/98 shadow-2xl backdrop-blur-xl sm:rounded-2xl sm:border"
-          style={{ maxHeight: "65vh", willChange: "transform, opacity" }}
+          className="flex flex-col overflow-hidden border-t border-white/10 bg-zinc-900 shadow-2xl sm:rounded-2xl sm:border"
+          style={{ maxHeight: "65dvh" }}
         >
               <div className="flex flex-shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
                 <div className="flex items-center gap-2">
@@ -689,7 +702,7 @@ function CommandBar({ open, onClose }: { open: boolean; onClose: () => void }) {
                 </button>
               </div>
             </div>
-      </motion.div>
+      </div>
     </>
   );
 }
@@ -699,6 +712,14 @@ function CommandBar({ open, onClose }: { open: boolean; onClose: () => void }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const [chatOpen, setChatOpen] = useState(false);
+  const { setCommandBarOpen } = useOverlayLock();
+
+  useEffect(() => {
+    setCommandBarOpen(chatOpen);
+    return () => {
+      setCommandBarOpen(false);
+    };
+  }, [chatOpen, setCommandBarOpen]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -709,7 +730,7 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="relative z-0 p-4 md:p-6">
+    <div className="relative p-4 md:p-6">
       {/* Page header — trigger must win hit-testing on iOS (above scroll/compositor quirks) */}
       <div className="relative z-[1] mb-5 flex items-center justify-between gap-3">
         <div className="min-w-0">
@@ -720,6 +741,7 @@ export default function DashboardPage() {
         </div>
         <button
           type="button"
+          role="button"
           onClick={() => setChatOpen(true)}
           className="pointer-events-auto relative z-[9999] flex min-h-[44px] shrink-0 touch-manipulation cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-400 transition-transform active:scale-95"
         >
