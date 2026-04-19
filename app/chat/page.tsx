@@ -3,6 +3,17 @@
 import { useState, useRef, useEffect } from "react";
 import { Paperclip, Send, Zap, Plus, Search, PanelLeft, X, ChevronRight } from "lucide-react";
 
+// ─── Dev Network Reminder ────────────────────────────────────────────────────
+//
+// To test on a physical iOS device over LAN:
+//   1.  npx next dev -H 0.0.0.0          (bind to all interfaces)
+//   2.  Open http://<your-LAN-IP>:3000   (e.g. http://10.0.0.126:3000)
+//   3.  If CSS looks stale, delete .next/ and restart the dev server:
+//         rm -rf .next && npx next dev -H 0.0.0.0
+//   4.  allowedDevOrigins in next.config.ts must include your device's IP.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 function cn(...classes: (string | undefined | false | null)[]) {
@@ -369,6 +380,20 @@ export default function SovereignChatPage() {
   const bottomRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Dev-only network reminder — fires once on mount in development.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.info(
+        "%c[Spirit OS · Dev Reminder]%c\n" +
+        "• Serving to LAN?  →  npx next dev -H 0.0.0.0\n" +
+        "• CSS stale on iOS?  →  rm -rf .next && npx next dev -H 0.0.0.0\n" +
+        "• Check next.config.ts allowedDevOrigins includes your device IP.",
+        "color:#a78bfa;font-weight:bold",
+        "color:#a1a1aa",
+      );
+    }
+  }, []);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, thinking]);
@@ -446,6 +471,7 @@ export default function SovereignChatPage() {
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
+              onTouchEnd={(e) => { e.preventDefault(); setMobileOpen(true); }}
               aria-label="Open conversations"
               className="flex h-9 w-9 cursor-pointer touch-manipulation items-center justify-center rounded-xl border border-white/[0.07] bg-white/5 text-zinc-500 transition-colors hover:text-zinc-300 md:hidden"
             >
@@ -494,7 +520,7 @@ export default function SovereignChatPage() {
         </header>
 
         {/* ── Message Arena ── */}
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div className="min-w-0 flex-1 overflow-y-auto px-4 py-6">
           <div className="mx-auto flex max-w-3xl flex-col gap-6">
 
             {messages.map((msg) => (
@@ -507,11 +533,11 @@ export default function SovereignChatPage() {
                 </p>
 
                 {msg.role === "user" ? (
-                  <div className="max-w-[85%] rounded-2xl rounded-tr-sm border border-white/[0.07] bg-zinc-900 px-4 py-3 text-sm leading-relaxed text-zinc-100 sm:max-w-xl">
+                  <div className="max-w-[85%] break-words rounded-2xl rounded-tr-sm border border-white/[0.07] bg-zinc-900 px-4 py-3 text-sm leading-relaxed text-zinc-100 sm:max-w-xl">
                     {msg.text}
                   </div>
                 ) : (
-                  <div className="max-w-[90%] font-mono text-sm leading-relaxed text-zinc-300 sm:max-w-2xl">
+                  <div className="max-w-[90%] break-words font-mono text-sm leading-relaxed text-zinc-300 sm:max-w-2xl">
                     {parseAcousticMarkers(msg.text)}
                   </div>
                 )}
@@ -535,9 +561,18 @@ export default function SovereignChatPage() {
           </div>
         </div>
 
-        {/* ── Input Matrix ── */}
+        {/* ── Input Matrix ──────────────────────────────────────────────────
+          paddingBottom uses max(12px, env(safe-area-inset-bottom)).
+          • env(safe-area-inset-bottom) is the iOS home indicator inset.
+            It requires viewportFit:"cover" in app/layout.tsx (already set).
+          • Tailwind cannot express env() without a plugin, so this stays
+            as an inline style.
+          • bg-zinc-950 is explicit so the safe-area padding region is
+            painted with the app's background color, not resolved by climbing
+            the compositor tree (which can produce wrong colors on iOS).
+        ──────────────────────────────────────────────────────────────────── */}
         <div
-          className="flex-shrink-0 border-t border-white/[0.07] px-4 pt-3"
+          className="flex-shrink-0 border-t border-white/[0.07] bg-zinc-950 px-4 pt-3"
           style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
         >
           <div className="mx-auto max-w-3xl">
@@ -601,6 +636,7 @@ export default function SovereignChatPage() {
           <div
             className="absolute inset-0 z-[490] bg-black/80 md:hidden"
             onClick={() => setMobileOpen(false)}
+            onTouchEnd={(e) => { e.preventDefault(); setMobileOpen(false); }}
           />
           <aside
             className="absolute left-0 top-0 z-[491] flex h-full w-[280px] flex-col border-r border-white/5 md:hidden"

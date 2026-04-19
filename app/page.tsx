@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useOverlayLock } from "@/components/OverlayLockContext";
 import {
@@ -51,34 +52,61 @@ function Label({ children }: { children: React.ReactNode }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. ORACLE ORB
 // ─────────────────────────────────────────────────────────────────────────────
-function OracleOrb({ onOpenChat }: { onOpenChat: () => void }) {
+function OracleOrb() {
+  const router = useRouter();
+
+  function goToOracle() {
+    router.push("/oracle");
+  }
   return (
     <BentoCard className="md:col-span-4 items-center justify-center gap-4 py-8">
       <Label>Spirit · AI Core</Label>
 
-      <div className="relative flex items-center justify-center my-3 pointer-events-none">
-        <motion.div
-          animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.25, 0.1] }}
-          transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
-          className="pointer-events-none absolute w-44 h-44 rounded-full bg-violet-500/20 transform-gpu"
-        />
-        <motion.div
-          animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.35, 0.15] }}
-          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
-          className="pointer-events-none absolute w-32 h-32 rounded-full bg-violet-500/25 transform-gpu"
-        />
-        <motion.button
+      {/* ── Navi entity ──────────────────────────────────────────────────────
+          Layout:
+            • Two subtle ambient auras stay fixed at centre (home glow)
+            • 5 particle trail dots follow the SAME orbit path with delays
+            • Button (+ wings + nucleus) flies the elliptical path
+              Wings are INSIDE the button so they travel with it
+      ─────────────────────────────────────────────────────────────────────── */}
+      <div className="relative h-40 w-40 my-2 pointer-events-none">
+
+        {/* Ambient home glow — stays fixed at centre while Navi flies */}
+        <span className="navi-aura pointer-events-none absolute inset-0 m-auto h-20 w-20 rounded-full bg-violet-500/20" />
+        <span className="navi-halo pointer-events-none absolute inset-0 m-auto h-12 w-12 rounded-full bg-violet-600/25" />
+
+        {/* ── Particle trail ─────────────────────────────────────────────── */}
+        {/* Same flight path as the entity, staggered back in time */}
+        <span className="navi-p1 pointer-events-none absolute inset-0 m-auto h-[7px] w-[7px] rounded-full bg-violet-300 opacity-70" />
+        <span className="navi-p2 pointer-events-none absolute inset-0 m-auto h-[5px] w-[5px] rounded-full bg-violet-400 opacity-50" />
+        <span className="navi-p3 pointer-events-none absolute inset-0 m-auto h-[4px] w-[4px] rounded-full bg-violet-400 opacity-30" />
+        <span className="navi-p4 pointer-events-none absolute inset-0 m-auto h-[3px] w-[3px] rounded-full bg-violet-500 opacity-[0.18]" />
+        <span className="navi-p5 pointer-events-none absolute inset-0 m-auto h-[2px] w-[2px] rounded-full bg-violet-500 opacity-10" />
+
+        {/* ── Flying entity ──────────────────────────────────────────────── */}
+        {/* Wings are CHILDREN so they travel with the entity naturally     */}
+        <button
           type="button"
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
-          onClick={onOpenChat}
-          onTouchEnd={(e) => { e.preventDefault(); onOpenChat(); }}
-          whileTap={{ scale: 0.95 }}
-          className="pointer-events-auto relative z-10 flex h-20 w-20 cursor-pointer touch-manipulation items-center justify-center rounded-full border border-violet-400/30 bg-gradient-to-br from-violet-500 to-violet-900 shadow-xl shadow-violet-900/70 transform-gpu"
-          aria-label="Open Command Bar"
+          aria-label="Open Oracle"
+          onClick={goToOracle}
+          onTouchEnd={(e) => { e.preventDefault(); goToOracle(); }}
+          className="navi-float pointer-events-auto absolute inset-0 m-auto z-10 flex h-12 w-12 cursor-pointer touch-manipulation items-center justify-center rounded-full"
         >
-          <Zap size={28} className="pointer-events-none text-violet-200" aria-hidden />
-        </motion.button>
+          {/* Wing wisp Left — absolute inside button, offset via animation */}
+          <span className="navi-wing-l pointer-events-none absolute h-10 w-[9px] rounded-full bg-gradient-to-b from-violet-300/60 to-violet-700/10" />
+          {/* Wing wisp Right */}
+          <span className="navi-wing-r pointer-events-none absolute h-10 w-[9px] rounded-full bg-gradient-to-b from-violet-300/60 to-violet-700/10" />
+          {/* Immediate halo ring */}
+          <span className="navi-halo-btn pointer-events-none absolute h-12 w-12 rounded-full border border-violet-300/35" />
+          {/* Glow pulse — radial gradient + opacity/scale3d; renders BELOW nucleus.
+              Box-shadow on .navi-core is static so WebKit never repaints it. */}
+          <span
+            className="navi-glow-pulse pointer-events-none absolute h-14 w-14 rounded-full"
+            style={{ background: "radial-gradient(circle, rgba(139,92,246,0.65) 0%, rgba(139,92,246,0) 70%)" }}
+          />
+          {/* Nucleus — static box-shadow only */}
+          <span className="navi-core pointer-events-none absolute h-6 w-6 rounded-full bg-white" />
+        </button>
       </div>
 
       <div className="text-center">
@@ -86,24 +114,28 @@ function OracleOrb({ onOpenChat }: { onOpenChat: () => void }) {
         <p className="text-xs text-zinc-500 mt-0.5">Listening · Idle</p>
       </div>
 
-      <div className="pointer-events-none flex h-5 items-end gap-[3px] mt-1">
-        {Array.from({ length: 22 }).map((_, i) => (
-          <motion.div
+      {/* CSS audio bars — scaleY from origin-bottom; no Framer Motion, GPU-composited */}
+      <div className="pointer-events-none flex h-5 items-end gap-[3px]">
+        {Array.from({ length: 18 }).map((_, i) => (
+          <span
             key={i}
-            animate={{ height: ["3px", `${6 + ((i * 41 + 7) % 12)}px`, "3px"] }}
-            transition={{ duration: 0.7 + (i % 5) * 0.11, repeat: Infinity, delay: i * 0.045, ease: "easeInOut" }}
-            className="w-[3px] rounded-full bg-violet-500/55 transform-gpu"
+            className="w-[3px] origin-bottom rounded-full bg-violet-500/50"
+            style={{
+              height: `${6 + ((i * 41 + 7) % 12)}px`,
+              animation: `navi-bar ${0.7 + (i % 5) * 0.11}s ease-in-out infinite alternate`,
+              animationDelay: `${i * 0.045}s`,
+            }}
           />
         ))}
       </div>
 
       <button
         type="button"
-        onClick={onOpenChat}
-        onTouchEnd={(e) => { e.preventDefault(); onOpenChat(); }}
-        className="pointer-events-auto relative z-[99999] mt-3 flex w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/10 py-2.5 text-xs font-semibold text-violet-300 transition-transform active:scale-[0.98]"
+        onClick={goToOracle}
+        onTouchEnd={(e) => { e.preventDefault(); goToOracle(); }}
+        className="mt-1 flex w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/10 py-2.5 text-xs font-semibold text-violet-300 transition-transform active:scale-[0.98]"
       >
-        <Command size={12} className="pointer-events-none shrink-0" aria-hidden /> Open Command Bar
+        <Command size={12} className="pointer-events-none shrink-0" aria-hidden /> Open Oracle
       </button>
     </BentoCard>
   );
@@ -622,7 +654,7 @@ function CommandBar({ onClose }: { onClose: () => void }) {
       */}
       <div className="fixed bottom-0 inset-x-0 z-[99999] transform-gpu sm:bottom-6 sm:left-1/2 sm:w-full sm:max-w-2xl sm:-translate-x-1/2 sm:px-4">
         <div
-          className="flex flex-col overflow-hidden border-t border-white/10 bg-zinc-900 shadow-2xl sm:rounded-2xl sm:border"
+          className="flex flex-col overflow-hidden border-t border-white/10 bg-zinc-950 shadow-2xl sm:rounded-2xl sm:border"
           style={{ maxHeight: "65dvh" }}
         >
           <div className="flex flex-shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
@@ -690,7 +722,7 @@ function CommandBar({ onClose }: { onClose: () => void }) {
             <div ref={bottomRef} />
           </div>
 
-          <div className="flex flex-shrink-0 items-center gap-2 border-t border-white/10 px-3 py-3">
+          <div className="flex flex-shrink-0 items-center gap-2 border-t border-white/10 bg-zinc-950 px-3 py-3">
             <input
               ref={inputRef}
               value={draft}
@@ -699,7 +731,7 @@ function CommandBar({ onClose }: { onClose: () => void }) {
                 if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); }
               }}
               placeholder="Issue a command to Spirit..."
-              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 font-mono text-xs text-zinc-200 outline-none placeholder:text-zinc-600 transition-colors focus:border-violet-500/40"
+              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-zinc-900 px-3 py-2.5 font-mono text-xs text-zinc-200 outline-none placeholder:text-zinc-600 transition-colors focus:border-violet-500/40"
             />
             <button
               type="button"
@@ -764,7 +796,7 @@ export default function DashboardPage() {
         Desktop overrides via md:col-span-X.
       */}
       <div className="grid grid-cols-12 gap-4">
-        <OracleOrb onOpenChat={() => setChatOpen(true)} />
+        <OracleOrb />
         <BriefingHub />
         <ProjectHub />
         <DriveHealthWidget />
