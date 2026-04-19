@@ -41,7 +41,7 @@ export const PROJECTS: Project[] = [
     name:       "Spirit OS UI",
     repo:       "spirit-os-dashboard",
     branch:     "main",
-    completion: 38,
+    completion: 70,
     todos: [
       "Wire OracleOrb mic input to XTTS v2 API endpoint",
       "Replace mock /chat data with Dexie.js thread persistence",

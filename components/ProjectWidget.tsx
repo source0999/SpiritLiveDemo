@@ -34,7 +34,16 @@ function langBadge(lang: string): string {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ProjectWidget() {
+interface ProjectWidgetProps {
+  /**
+   * Overrides the hardcoded completion% in mockProjects.ts for specific repos.
+   * Populated server-side by ProjectWidgetServer via lib/readmeProgress.ts.
+   * Any repo slug absent from this map falls back to the mockProjects value.
+   */
+  completionOverrides?: Record<string, number>;
+}
+
+export function ProjectWidget({ completionOverrides = {} }: ProjectWidgetProps) {
   // Trigger CSS scaleX transition after mount — GPU-composited, iOS safe.
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -72,7 +81,11 @@ export function ProjectWidget() {
         divide-y gives each row a hairline separator without extra margin math.
       ──────────────────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto divide-y divide-white/[0.04]">
-        {PROJECTS.map((proj, i) => (
+        {PROJECTS.map((proj, i) => {
+          // Prefer the README-parsed override; fall back to the static mock value.
+          const completion = completionOverrides[proj.repo] ?? proj.completion;
+
+          return (
           <div key={proj.repo} className="flex items-center gap-3 py-2.5">
 
             {/* Status pulse dot */}
@@ -95,19 +108,17 @@ export function ProjectWidget() {
                 </span>
               </div>
 
-              {/* Row 2: animated progress bar */}
-              <div className="relative h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                {/*
+              {/* Row 2: animated progress bar.
                   scaleX animates on the GPU compositor (translate3d-promoted
                   layer). origin-left grows the bar left → right.
-                  Staggered transitionDelay creates a cascade on first mount.
-                */}
+                  Staggered transitionDelay creates a cascade on first mount.  */}
+              <div className="relative h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
                 <div
-                  className={`absolute inset-y-0 left-0 w-full origin-left rounded-full transition-transform ease-out ${barColor(proj.completion)}/70`}
+                  className={`absolute inset-y-0 left-0 w-full origin-left rounded-full transition-transform ease-out ${barColor(completion)}/70`}
                   style={{
-                    transform:          `scaleX(${mounted ? proj.completion / 100 : 0})`,
-                    transitionDuration:  "750ms",
-                    transitionDelay:     `${60 + i * 70}ms`,
+                    transform:         `scaleX(${mounted ? completion / 100 : 0})`,
+                    transitionDuration: "750ms",
+                    transitionDelay:    `${60 + i * 70}ms`,
                   }}
                 />
               </div>
@@ -115,7 +126,7 @@ export function ProjectWidget() {
 
             {/* Completion % */}
             <span className="w-8 flex-shrink-0 text-right font-mono text-[11px] tabular-nums text-zinc-500">
-              {proj.completion}%
+              {completion}%
             </span>
 
             {/* TODO count pill — amber when >5 open tasks */}
@@ -129,7 +140,8 @@ export function ProjectWidget() {
               {proj.todos.length}
             </span>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ── Footer ── */}
