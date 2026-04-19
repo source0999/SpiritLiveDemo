@@ -166,9 +166,10 @@ export function DesktopSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
 
-  // On /chat the sidebar auto-collapses to an icon-only rail.
+  // On /chat and /projects the sidebar auto-collapses to an icon-only rail
+  // so the workspace gets maximum horizontal room.
   // The manual toggle remains available on all other routes.
-  const isRail     = pathname?.startsWith("/chat") ?? false;
+  const isRail      = (pathname?.startsWith("/chat") || pathname?.startsWith("/projects")) ?? false;
   const isCollapsed = isRail || collapsed;
 
   // Rail is narrower than the manual-collapse state so the chat workspace

@@ -189,3 +189,33 @@ body {
 .term-cursor {
   animation: term-blink 1.1s step-start infinite;
 }
+
+/* ── Matrix scrollbars ────────────────────────────────────────────────────────
+   Thin emerald-tinted thumbs on a transparent track.
+   Webkit (Chrome, Safari, Edge) + Firefox covered.
+   4px width keeps them unobtrusive while the green tint reads as "terminal".
+   Hover brightens the thumb so it's still discoverable.
+   ──────────────────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width:  4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background:    rgba(16, 185, 129, 0.22);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.48);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 185, 129, 0.22) transparent;
+}

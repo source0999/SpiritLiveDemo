@@ -388,7 +388,8 @@ export default function ProjectsPage() {
         </header>
 
         {/* ── Scrollable Details Content ──────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 py-5">
+          <div className="mx-auto w-full max-w-2xl space-y-5">
 
           {/* ── Spirit's Assessment ──────────────────────────────────────────
             High-contrast violet-bordered card for the AI-generated blurb.
@@ -464,6 +465,7 @@ export default function ProjectsPage() {
 
           {/* Bottom breathing room for iOS safe area */}
           <div style={{ paddingBottom: "env(safe-area-inset-bottom)" }} />
+          </div>{/* end max-w-2xl */}
         </div>
       </div>
 
