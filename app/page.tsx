@@ -33,7 +33,7 @@ function BentoCard({
 }) {
   return (
     <div
-      className={cn("col-span-12 bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-5 flex flex-col", className)}
+      className={cn("col-span-12 bg-zinc-900 border border-white/10 rounded-2xl p-5 flex flex-col", className)}
     >
       {children}
     </div>
@@ -69,10 +69,10 @@ function OracleOrb({ onOpenChat }: { onOpenChat: () => void }) {
         />
         <motion.button
           type="button"
-          role="button"
           animate={{ scale: [1, 1.05, 1] }}
           transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
           onClick={onOpenChat}
+          onTouchEnd={(e) => { e.preventDefault(); onOpenChat(); }}
           whileTap={{ scale: 0.95 }}
           className="pointer-events-auto relative z-10 flex h-20 w-20 cursor-pointer touch-manipulation items-center justify-center rounded-full border border-violet-400/30 bg-gradient-to-br from-violet-500 to-violet-900 shadow-xl shadow-violet-900/70 transform-gpu"
           aria-label="Open Command Bar"
@@ -99,9 +99,9 @@ function OracleOrb({ onOpenChat }: { onOpenChat: () => void }) {
 
       <button
         type="button"
-        role="button"
         onClick={onOpenChat}
-        className="pointer-events-auto relative z-[9999] mt-3 flex w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/10 py-2.5 text-xs font-semibold text-violet-300 transition-transform active:scale-[0.98]"
+        onTouchEnd={(e) => { e.preventDefault(); onOpenChat(); }}
+        className="pointer-events-auto relative z-[99999] mt-3 flex w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/10 py-2.5 text-xs font-semibold text-violet-300 transition-transform active:scale-[0.98]"
       >
         <Command size={12} className="pointer-events-none shrink-0" aria-hidden /> Open Command Bar
       </button>
@@ -505,12 +505,18 @@ function ToxicGrader() {
 // ─────────────────────────────────────────────────────────────────────────────
 // COMMAND BAR
 // ─────────────────────────────────────────────────────────────────────────────
+//
+// iOS Nuclear Option: CommandBar is CONDITIONALLY MOUNTED by the parent.
+// It has NO `open` prop — when chatOpen is false, this component is physically
+// removed from the DOM. Fresh nodes on every open bypass the iOS Safari
+// compositor cache entirely (no opacity-0 ghost layer to misfire).
+//
 type ChatMsg = { role: "user" | "spirit"; text: string };
 const INIT_MSGS: ChatMsg[] = [{ role: "spirit", text: "Source. Command bar online. What do you need?" }];
 
 type SpiritStatus = "online" | "error";
 
-function CommandBar({ open, onClose }: { open: boolean; onClose: () => void }) {
+function CommandBar({ onClose }: { onClose: () => void }) {
   const [msgs, setMsgs] = useState<ChatMsg[]>(INIT_MSGS);
   const [draft, setDraft] = useState("");
   const [thinking, setThinking] = useState(false);
@@ -518,10 +524,19 @@ function CommandBar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const { setCommandBarOpen } = useOverlayLock();
+
+  // Register with OverlayLock on mount, deregister on unmount.
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 80);
-  }, [open]);
+    setCommandBarOpen(true);
+    return () => { setCommandBarOpen(false); };
+  }, [setCommandBarOpen]);
+
+  // Focus input on mount (no setTimeout — DOM is live immediately).
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, thinking]);
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", h);
@@ -580,128 +595,123 @@ function CommandBar({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <>
       {/*
-        Backdrop — opacity transition replaces visibility.
-        visibility:hidden is cached by the iOS GPU compositor; the layer
-        may never be promoted to visible even after state change.
-        opacity:0 + pointer-events:none is fully hardware-accelerated on iOS.
-      */}
-      {/*
-        Backdrop — backdrop-blur-sm REMOVED.
-        backdrop-filter triggers an off-screen WebKit render pass; iOS drops
-        the paint silently when GPU memory is constrained or the stacking tree
-        is complex. Solid bg-black/80 is visually equivalent and always paints.
+        Backdrop — no opacity toggle, no pointer-events conditional, no data-open.
+        It is in the DOM only when CommandBar is mounted (chatOpen === true).
+        iOS Safari gets a brand-new node on every open and has no cached layer.
+        No backdrop-blur — solid bg-black/80 always paints; blur triggers an
+        off-screen WebKit render pass that silently aborts under GPU pressure.
       */}
       <div
-        data-open={open}
-        aria-hidden={!open}
         role="button"
-        tabIndex={open ? 0 : -1}
-        className={cn(
-          "fixed inset-0 z-[99998] touch-manipulation cursor-pointer bg-black/80",
-          "transition-opacity duration-200 ease-out",
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
-        )}
+        tabIndex={0}
+        aria-label="Close command bar"
+        className="fixed inset-0 z-[99998] cursor-pointer touch-manipulation bg-black/80"
         onClick={onClose}
+        onTouchEnd={(e) => { e.preventDefault(); onClose(); }}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onClose();
-          }
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClose(); }
         }}
       />
-      {/* Panel — backdrop-blur-xl REMOVED; solid bg-zinc-900; 65dvh for iOS URL bar */}
-      <div
-        data-open={open}
-        aria-hidden={!open}
-        className={cn(
-          "fixed bottom-0 inset-x-0 z-[99999] transform-gpu sm:bottom-6 sm:left-1/2 sm:w-full sm:max-w-2xl sm:-translate-x-1/2 sm:px-4",
-          "transition-[opacity,transform] duration-200 ease-out",
-          open ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-full pointer-events-none",
-        )}
-      >
+
+      {/*
+        Panel — no translate-y-full/0 entrance, no opacity-0/100.
+        Static position classes only; animation is unnecessary and adds
+        a transform that can create a stacking context on iOS.
+        sm:-translate-x-1/2 is fine — it's a static desktop centering
+        transform, not a dynamic animation.
+      */}
+      <div className="fixed bottom-0 inset-x-0 z-[99999] transform-gpu sm:bottom-6 sm:left-1/2 sm:w-full sm:max-w-2xl sm:-translate-x-1/2 sm:px-4">
         <div
           className="flex flex-col overflow-hidden border-t border-white/10 bg-zinc-900 shadow-2xl sm:rounded-2xl sm:border"
           style={{ maxHeight: "65dvh" }}
         >
-              <div className="flex flex-shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="pointer-events-none flex h-5 w-5 items-center justify-center rounded-full border border-violet-500/40 bg-violet-500/20">
-                    <Zap size={10} className="text-violet-400" />
-                  </div>
-                  <p className="text-xs font-semibold text-zinc-300 font-mono">Spirit · Command Bar</p>
-                  <span
-                    className={cn(
-                      "rounded-full border px-2 py-0.5 text-[10px]",
-                      status === "error"
-                        ? "border-red-500/30 bg-red-500/10 text-red-300"
-                        : "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
-                    )}
-                  >
-                    {status === "error" ? "Error" : "Online"}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="pointer-events-auto relative z-[9999] min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-lg p-2 text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300"
-                  aria-label="Close command bar"
-                >
-                  <X size={16} className="pointer-events-none" aria-hidden />
-                </button>
+          <div className="flex flex-shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <div className="pointer-events-none flex h-5 w-5 items-center justify-center rounded-full border border-violet-500/40 bg-violet-500/20">
+                <Zap size={10} className="text-violet-400" />
               </div>
+              <p className="font-mono text-xs font-semibold text-zinc-300">Spirit · Command Bar</p>
+              <span
+                className={cn(
+                  "rounded-full border px-2 py-0.5 text-[10px]",
+                  status === "error"
+                    ? "border-red-500/30 bg-red-500/10 text-red-300"
+                    : "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
+                )}
+              >
+                {status === "error" ? "Error" : "Online"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              onTouchEnd={(e) => { e.preventDefault(); onClose(); }}
+              aria-label="Close command bar"
+              className="flex min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation items-center justify-center rounded-lg p-2 text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300"
+            >
+              <X size={16} className="pointer-events-none" aria-hidden />
+            </button>
+          </div>
 
-              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-                {msgs.map((msg, i) => (
-                  <div key={i} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}>
-                    {msg.role === "spirit" && (
-                      <div className="pointer-events-none mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-violet-500/30 bg-violet-500/20">
-                        <Zap size={9} className="text-violet-400" />
-                      </div>
-                    )}
-                    <div className={cn("max-w-[85%] px-3 py-2 rounded-2xl text-xs leading-relaxed", msg.role === "user" ? "bg-violet-500/20 border border-violet-500/25 text-zinc-200 rounded-tr-sm" : "bg-white/5 border border-white/10 text-zinc-300 rounded-tl-sm font-mono")}>
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-                {thinking && (
-                  <div className="flex gap-2">
-                    <div className="pointer-events-none flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-violet-500/30 bg-violet-500/20">
-                      <Zap size={9} className="text-violet-400" />
-                    </div>
-                    <div className="px-3 py-2.5 rounded-2xl rounded-tl-sm bg-white/5 border border-white/10 flex items-center gap-1">
-                      {[0, 1, 2].map((d) => (
-                        <motion.span key={d} animate={{ opacity: [0.2, 1, 0.2], y: [0, -3, 0] }} transition={{ duration: 0.8, repeat: Infinity, delay: d * 0.18 }} className="w-1.5 h-1.5 rounded-full bg-violet-400 block transform-gpu" />
-                      ))}
-                    </div>
+          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+            {msgs.map((msg, i) => (
+              <div key={i} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}>
+                {msg.role === "spirit" && (
+                  <div className="pointer-events-none mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-violet-500/30 bg-violet-500/20">
+                    <Zap size={9} className="text-violet-400" />
                   </div>
                 )}
-                <div ref={bottomRef} />
+                <div className={cn(
+                  "max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed",
+                  msg.role === "user"
+                    ? "rounded-tr-sm border border-violet-500/25 bg-violet-500/20 text-zinc-200"
+                    : "rounded-tl-sm border border-white/10 bg-white/5 font-mono text-zinc-300",
+                )}>
+                  {msg.text}
+                </div>
               </div>
+            ))}
+            {thinking && (
+              <div className="flex gap-2">
+                <div className="pointer-events-none flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-violet-500/30 bg-violet-500/20">
+                  <Zap size={9} className="text-violet-400" />
+                </div>
+                <div className="flex items-center gap-1 rounded-2xl rounded-tl-sm border border-white/10 bg-white/5 px-3 py-2.5">
+                  {[0, 1, 2].map((d) => (
+                    <span
+                      key={d}
+                      className="block h-1.5 w-1.5 animate-bounce rounded-full bg-violet-400"
+                      style={{ animationDelay: `${d * 0.18}s` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
 
-              <div className="px-3 py-3 border-t border-white/10 flex items-center gap-2 flex-shrink-0">
-                <input
-                  ref={inputRef}
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      void send();
-                    }
-                  }}
-                  placeholder="Issue a command to Spirit..."
-                  className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-violet-500/40 transition-colors font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => void send()}
-                  disabled={!draft.trim() || thinking}
-                  className="pointer-events-auto relative z-[9999] flex h-11 w-11 flex-shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/20 text-violet-300 transition-all hover:bg-violet-500/30 disabled:opacity-30 active:scale-95"
-                >
-                  <Send size={13} className="pointer-events-none" aria-hidden />
-                </button>
-              </div>
-            </div>
+          <div className="flex flex-shrink-0 items-center gap-2 border-t border-white/10 px-3 py-3">
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); }
+              }}
+              placeholder="Issue a command to Spirit..."
+              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 font-mono text-xs text-zinc-200 outline-none placeholder:text-zinc-600 transition-colors focus:border-violet-500/40"
+            />
+            <button
+              type="button"
+              onClick={() => void send()}
+              disabled={!draft.trim() || thinking}
+              aria-label="Send"
+              className="flex h-11 w-11 flex-shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/20 text-violet-300 transition-all hover:bg-violet-500/30 disabled:opacity-30 active:scale-95"
+            >
+              <Send size={13} className="pointer-events-none" aria-hidden />
+            </button>
+          </div>
+        </div>
       </div>
     </>
   );
@@ -712,14 +722,6 @@ function CommandBar({ open, onClose }: { open: boolean; onClose: () => void }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const [chatOpen, setChatOpen] = useState(false);
-  const { setCommandBarOpen } = useOverlayLock();
-
-  useEffect(() => {
-    setCommandBarOpen(chatOpen);
-    return () => {
-      setCommandBarOpen(false);
-    };
-  }, [chatOpen, setCommandBarOpen]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -741,9 +743,10 @@ export default function DashboardPage() {
         </div>
         <button
           type="button"
-          role="button"
           onClick={() => setChatOpen(true)}
-          className="pointer-events-auto relative z-[9999] flex min-h-[44px] shrink-0 touch-manipulation cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-400 transition-transform active:scale-95"
+          onTouchEnd={(e) => { e.preventDefault(); setChatOpen(true); }}
+          aria-label="Open Command Bar"
+          className="pointer-events-auto relative z-[99999] flex min-h-[44px] shrink-0 touch-manipulation cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-400 transition-transform active:scale-95"
         >
           <Command size={13} className="pointer-events-none shrink-0" aria-hidden />
           <span className="hidden sm:inline">Command Bar</span>
@@ -770,7 +773,7 @@ export default function DashboardPage() {
         <ToxicGrader />
       </div>
 
-      <CommandBar open={chatOpen} onClose={() => setChatOpen(false)} />
+      {chatOpen && <CommandBar onClose={() => setChatOpen(false)} />}
     </div>
   );
 }

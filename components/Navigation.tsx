@@ -70,8 +70,9 @@ export function MobileNav() {
         <button
           type="button"
           onClick={() => setOpen(true)}
+          onTouchEnd={(e) => { e.preventDefault(); setOpen(true); }}
           aria-label="Open navigation"
-          className="relative flex h-11 w-11 cursor-pointer touch-manipulation items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 active:bg-white/10"
+          className="relative z-[99999] flex h-11 w-11 cursor-pointer touch-manipulation items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 active:bg-white/10"
         >
           <Menu size={18} className="pointer-events-none" aria-hidden />
         </button>
@@ -88,6 +89,7 @@ export function MobileNav() {
             tabIndex={0}
             aria-label="Close navigation"
             onClick={() => setOpen(false)}
+            onTouchEnd={(e) => { e.preventDefault(); setOpen(false); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -109,6 +111,7 @@ export function MobileNav() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
+                onTouchEnd={(e) => { e.preventDefault(); setOpen(false); }}
                 aria-label="Close navigation"
                 className="relative flex h-11 w-11 cursor-pointer touch-manipulation items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-400 active:bg-white/10"
               >
