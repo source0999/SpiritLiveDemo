@@ -4,11 +4,12 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useOverlayLock } from "@/components/OverlayLockContext";
+import { ProjectWidget } from "@/components/ProjectWidget";
 import {
   Zap, Clock, AlertTriangle, Flame, Terminal,
-  Cpu, HardDrive, GitBranch,
+  Cpu, HardDrive,
   ExternalLink, ChevronRight, Send, X, Command,
-  FolderGit2, Circle, Thermometer, ShieldCheck, ShieldAlert,
+  Thermometer, ShieldCheck, ShieldAlert,
 } from "lucide-react";
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -177,74 +178,6 @@ function BriefingHub() {
       <p className="text-[10px] text-zinc-600 mt-3 text-center">
         — SearXNG (local) · GPT-Researcher · No Google pings —
       </p>
-    </BentoCard>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 3. PROJECT HUB
-// ─────────────────────────────────────────────────────────────────────────────
-const PROJECTS = [
-  { name: "spirit-os-dashboard",  branch: "main",          completion: 38, todos: 14, lastCommit: "2h ago",  status: "active" as const },
-  { name: "toxic-grader-agent",   branch: "feat/langfuse", completion: 61, todos: 6,  lastCommit: "5h ago",  status: "active" as const },
-  { name: "cinema-engine-config", branch: "main",          completion: 82, todos: 2,  lastCommit: "1d ago",  status: "idle"   as const },
-  { name: "ghost-node-setup",     branch: "dns-pihole",    completion: 20, todos: 9,  lastCommit: "3d ago",  status: "idle"   as const },
-];
-
-function ProjectHub() {
-  return (
-    <BentoCard className="md:col-span-7">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <Label>Project Hub · Architecture 6</Label>
-          <h2 className="text-base font-semibold tracking-tight text-zinc-100">Active Repositories</h2>
-        </div>
-        <FolderGit2 size={14} className="text-zinc-600 flex-shrink-0" />
-      </div>
-      <div className="space-y-2.5">
-        {PROJECTS.map((proj, i) => (
-          <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 group">
-            <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", proj.status === "active" ? "bg-emerald-400" : "bg-zinc-600")} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1.5">
-                <p className="text-xs font-mono font-medium text-zinc-200 truncate">{proj.name}</p>
-                <span className="hidden sm:flex text-[10px] text-zinc-600 items-center gap-1 flex-shrink-0">
-                  <GitBranch size={9} />{proj.branch}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${proj.completion}%` }}
-                    transition={{ duration: 0.8, delay: 0.4 + i * 0.08, ease: "easeOut" }}
-                    className={cn(
-                      "h-full rounded-full transform-gpu",
-                      proj.completion >= 70 ? "bg-emerald-500/70" :
-                      proj.completion >= 40 ? "bg-violet-500/70" : "bg-amber-500/60"
-                    )}
-                  />
-                </div>
-                <span className="text-[10px] font-mono text-zinc-500 w-8 text-right flex-shrink-0">{proj.completion}%</span>
-              </div>
-            </div>
-            <div className="text-right flex-shrink-0 hidden md:block">
-              <p className="text-[10px] text-zinc-600">{proj.todos} TODOs</p>
-              <p className="text-[10px] text-zinc-600">{proj.lastCommit}</p>
-            </div>
-            <button className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 text-[10px] font-semibold">
-              <ExternalLink size={10} /> IDE
-            </button>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-        <Circle size={10} className="text-zinc-600 flex-shrink-0" />
-        <p className="text-[11px] text-zinc-500 truncate">Spirit scans TODOs vs README · auto-computes completion %</p>
-        <button className="flex items-center gap-1 text-[10px] text-violet-400 flex-shrink-0 font-semibold ml-auto">
-          <ChevronRight size={12} /> All
-        </button>
-      </div>
     </BentoCard>
   );
 }
@@ -798,7 +731,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-12 gap-4">
         <OracleOrb />
         <BriefingHub />
-        <ProjectHub />
+        <ProjectWidget />
         <DriveHealthWidget />
         <SystemStats />
         <EnergyMatrix />
