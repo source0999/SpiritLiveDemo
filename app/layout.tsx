@@ -1,17 +1,18 @@
 import "./globals.css";
-import { Navigation } from "@/components/Navigation";
+import type { Viewport } from "next";
+import { AppShell } from "@/components/AppShell";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+};
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="dark">
-      <body className="bg-zinc-950 text-zinc-100 antialiased">
-        <div className="flex flex-row">
-          <Navigation />
-          <main className="flex-1 min-w-0 pt-[60px] md:pt-0">
-            {children}
-          </main>
-        </div>
-      </body>
+      <AppShell>{children}</AppShell>
     </html>
   );
 }
